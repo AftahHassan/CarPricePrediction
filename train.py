@@ -10,20 +10,20 @@ from sklearn.metrics import mean_absolute_error
 # ================================
 # CREATE FOLDERS
 # ================================
-
 os.makedirs("model", exist_ok=True)
 os.makedirs("encoders", exist_ok=True)
 
 # ================================
-# LOAD DATASET
+# LOAD DATA (FIX ENCODING)
 # ================================
-
-df = pd.read_csv("data/avito_car_dataset_ALL.csv")
+df = pd.read_csv(
+    "data/avito_car_dataset_ALL.csv",
+    encoding="latin1"
+)
 
 # ================================
 # SELECT COLUMNS
 # ================================
-
 df = df[[
     "Ville",
     "Marque",
@@ -35,15 +35,8 @@ df = df[[
 ]]
 
 # ================================
-# DROP NULL VALUES
-# ================================
-
-df = df.dropna()
-
-# ================================
 # RENAME COLUMNS
 # ================================
-
 df.columns = [
     "city",
     "brand",
@@ -55,9 +48,28 @@ df.columns = [
 ]
 
 # ================================
-# ENCODERS
+# CLEAN DATA
 # ================================
 
+# Clean mileage (IMPORTANT FIX)
+df["mileage"] = df["mileage"].astype(str)
+df["mileage"] = df["mileage"].str.replace(" ", "")
+df["mileage"] = df["mileage"].str.split("-").str[0]
+df["mileage"] = pd.to_numeric(df["mileage"], errors="coerce")
+
+# Clean year
+df["year"] = pd.to_numeric(df["year"], errors="coerce")
+
+# Clean price (remove spaces if string)
+df["price"] = df["price"].astype(str).str.replace(" ", "")
+df["price"] = pd.to_numeric(df["price"], errors="coerce")
+
+# Drop missing values
+df = df.dropna()
+
+# ================================
+# ENCODERS
+# ================================
 city_encoder = LabelEncoder()
 brand_encoder = LabelEncoder()
 model_encoder = LabelEncoder()
@@ -69,27 +81,16 @@ df["model"] = model_encoder.fit_transform(df["model"])
 df["fuel"] = fuel_encoder.fit_transform(df["fuel"])
 
 # ================================
-# FEATURES & TARGET
+# FEATURES / TARGET
 # ================================
-
-X = df[[
-    "city",
-    "brand",
-    "model",
-    "year",
-    "mileage",
-    "fuel"
-]]
-
+X = df[["city", "brand", "model", "year", "mileage", "fuel"]]
 y = df["price"]
 
 # ================================
 # SPLIT DATA
 # ================================
-
 X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
+    X, y,
     test_size=0.2,
     random_state=42
 )
@@ -97,24 +98,21 @@ X_train, X_test, y_train, y_test = train_test_split(
 # ================================
 # MODEL
 # ================================
-
 model = LinearRegression()
-
-# TRAIN MODEL
 model.fit(X_train, y_train)
 
-# PREDICTIONS
-predictions = model.predict(X_test)
+# ================================
+# EVALUATION
+# ================================
+pred = model.predict(X_test)
+mae = mean_absolute_error(y_test, pred)
 
-# SCORE
-mae = mean_absolute_error(y_test, predictions)
-
-print(f"MAE : {mae}")
+print("✅ Model trained successfully")
+print("📊 MAE:", mae)
 
 # ================================
 # SAVE MODEL
 # ================================
-
 joblib.dump(model, "model/model.pkl")
 
 encoders = {
@@ -126,4 +124,4 @@ encoders = {
 
 joblib.dump(encoders, "encoders/encoders.pkl")
 
-print("✅ Model Saved Successfully")
+print("✅ Saved successfully")
